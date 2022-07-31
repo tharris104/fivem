@@ -2,14 +2,24 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'nemesis104'
-description 'Vehicle spawning menu using NativeUI. Automatically upgrades!'
-version '1.2.0'
+description 'Police will pull you over for speeding and running lights (from SP Mod)'
+version '1.0.0'
 
-client_scripts {
-    '@NativeUI/NativeUI.lua',
-    'menu.lua'
+files {
+    'PullMeOver.dll',
+    'PullMeOver.ini',
+    'PullMeOver.pdb',
+    'PullMeOver/Streets.xml'
 }
-
+client_scripts {
+    'PullMeOver.dll',
+    'PullMeOver.ini',
+    'PullMeOver.pdb',
+    'PullMeOver/Streets.xml'
+}
 server_scripts {
-    '@mysql-async/lib/MySQL.lua'
+    'PullMeOver.dll',
+    'PullMeOver.ini',
+    'PullMeOver.pdb',
+    'PullMeOver/Streets.xml'
 }
