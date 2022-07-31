@@ -2,6 +2,9 @@
 ---------------------------------------------------
 ---------------------------------------------------
 
+-- todo: options menu (mysql)
+-- todo: vehicle tracker (mysql) that removes old spawn
+
 -- Vehicle mod refrence:
 -- https://docs.fivem.net/natives/?_0x6AF0636DDEDCB6DD
 
