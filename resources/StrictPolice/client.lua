@@ -180,6 +180,12 @@ Citizen.CreateThread(function()
 					if dist < MaxLosDist then
 						-- if player is not already wanted
 						if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+							-- cop sees you driving a known wanted vehicle (evaded successfully)
+							-- this needs to be the first check
+							if IsVehicleWanted(playerveh) then
+								ShowNotification("~r~Police~s~ witnessed you driving a wanted vehicle!")
+								ReportCrime(PlayerId(), 9, GetWantedLevelThreshold(1)) -- 9: ???
+							end
 							-- cop sees you speeding in car
 							if speedmph > GlobalSpeedLimit then
 								ShowNotification("Speeding Violation! (~r~" .. speedmph .. " mph~s~)")
@@ -199,11 +205,6 @@ Citizen.CreateThread(function()
 							if IsVehicleStolen(playerveh) then
 								ShowNotification("~r~Police~s~ witnessed you driving a stolen vehicle!")
 								ReportCrime(PlayerId(), 7, GetWantedLevelThreshold(1)) -- 7: Vehicle theft (a "5-0-3")
-							end
-							-- cop sees you driving a known wanted vehicle (evaded successfully)
-							if IsVehicleWanted(playerveh) then
-								ShowNotification("~r~Police~s~ witnessed you driving a wanted vehicle!")
-								ReportCrime(PlayerId(), 9, GetWantedLevelThreshold(1)) -- 9: ???
 							end
 							-- todo: cop sees you hit objects with vehicle
 							-- todo: cop sees you run redlight!!!
