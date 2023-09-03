@@ -5,7 +5,7 @@
 local debug_enabled = true
 
 -- Global speed limit that will trigger a wanted level (mph)
-local GlobalSpeedLimit = 120
+local GlobalSpeedLimit = 85
 
 -- Amount allowed in seconds before these crimes are reported
 -- TOG: tires off ground, BO: burnouts, VW: vehicle wanted
@@ -17,25 +17,18 @@ local VW_WarningCounter = 0
 local VW_WarningThreshold = 10
 
 -- Running a red light options:
--- Distance to detect vehicles near the player
+-- Distance from player to detect vehicles near player
 -- Angle threshold to use when comparing the direction of player and ai
-local nearbyDistance = 100.0
-local angleThreshold = 35.0
-
--- Police spawn options:
--- Adjust the desired distance (in meters)
--- Adjust the FOV angle (in degrees)
-local policeSpawnPercentage = 50
-local spawnDistance = 200.0
-local fovAngle = 45.0
+local nearbyDistance = 200.0
+local angleThreshold = 90.0
 
 -- Stop police from speaking
-local StopPoliceSpeaking = true
+local StopPoliceSpeaking = true -- todo: doesnt really work as expected..
 
 -- Maximum distance police PEDs can see player in their line of sight
-local MaxLosDist = 40
+local MaxLosDist = 150
 
--- Switch used for modifiying wanted level changes
+-- Switch used for modifying wanted level changes
 local PlayerWantedCheck = false
 
 -- Function for displaying notifications to player
@@ -80,7 +73,6 @@ function GetClosestPolicePed(coords)
                                 local isDead = IsEntityDead(policePed)
                                 local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                                 local distance = #(coords - GetEntityCoords(policePed))
-
                                 if not isDead and isPlayerInFOV then
                                         if closestDist == -1 or distance < closestDist then
                                                 closestPed = policePed
@@ -88,75 +80,12 @@ function GetClosestPolicePed(coords)
                                         end
                                 end
                         end
+
                 end
         end
 
         return closestPed, closestDist
 end
-
--- todo: this doesnt work.. 
-RegisterCommand("pingpolice", function()
-        local playerPed = PlayerPedId()
-        local playerCoords = GetEntityCoords(GetPlayerPed(playerPed))
-        print("Player coords (" .. playerCoords .. ")")
-
-        for _, entity in pairs(GetGamePool("CPed")) do
-                if IsEntityAPed(entity) then
-                        if GetPedType(entity) == 7 then -- Ped is a cop
-                                local pedCoords = GetEntityCoords(entity)
-                                local blip = AddBlipForCoord(pedCoords.x, pedCoords.y, pedCoords.z)
-                                SetBlipSprite(blip, 161)
-                                SetBlipDisplay(blip, 2)
-                                SetBlipColour(blip, 1) -- Set blip color to red
-                                SetBlipAsShortRange(blip, true)
-                                BeginTextCommandSetBlipName("Police man found (" .. entity ..")")
-                                AddTextComponentString("poe poe")
-                                EndTextCommandSetBlipName(blip)
-                                Citizen.Wait(5000) -- ping for 5 seconds
-                                RemoveBlip(blip)
-                        end
-                end
-        end
-end, false)
-
-
--- Spawn police vehicles based on percentage
-Citizen.CreateThread(function()
-        while true do
-                Citizen.Wait(1000) -- every 1 second
-                -- Generate a random number between 1 and 100
-                local randomChance = math.random(1, 100)
-                if randomChance <= policeSpawnPercentage then
-                        -- players data
-                        local playerPed = PlayerPedId()
-                        local x, y, z = table.unpack(GetEntityCoords(playerPed))
-
-                        -- 3rd closest vehicle on road
-                        local _, _, _, outX, outY, outZ, _ = GetNthClosestVehicleNode(x, y, z, 3, 0, 0, 0)
-
-                        -- calculate spawn point
-                        local angle = math.rad(math.random(0, 360)) -- Random angle in radians
-                        local offsetX = spawnDistance * math.cos(angle)
-                        local offsetY = spawnDistance * math.sin(angle)
-			print('random selected.. outX(' .. outX .. ') outY(' .. outY .. ')')
-                        if outX and nil then
-                                local spawnX = outX + offsetX
-                                local spawnY = outY + offsetY
-
-                                -- Spawn a police car
-                                print('popo spawning')
-                                local model = GetHashKey("police") -- Replace with your desired police car model
-                                local heading = math.random(0, 360) -- Random heading (rotation) for the vehicle
-                                local vehicle = CreateVehicle(model, spawnX, spawnY, outZ, heading, true, false)
-
-                                -- Set AI behavior for the police car
-                                local ped = CreatePedInsideVehicle(vehicle, 26, model, -1, true, true)
-                                TaskWarpPedIntoVehicle(ped, vehicle, -1)
-                                TaskVehicleDriveWander(ped, vehicle, speed, 786603)
-                        end
-                end
-        end
-end)
 
 -- Modify police based on player wanted level
 Citizen.CreateThread(function()
@@ -184,6 +113,7 @@ Citizen.CreateThread(function()
 
                 -- level 1 initial code once you become wanted, police will attempt to arrest you
                 if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 1 then
+                        print("Wanted Level 1 - Police will attempt to write you a citation")
                         for index, entity in pairs(GetGamePool("CPed")) do
                                 -- assigning entity.. also consider peds in vehicles
                                 if IsEntityAPed(entity) then
@@ -200,26 +130,23 @@ Citizen.CreateThread(function()
                                         local isdead = IsEntityDead(policePed)
                                         if policePed ~= playerPed and not isdead then
                                                 RemoveAllPedWeapons(policePed, true)
-                                                StopPedSpeaking(policePed, StopPoliceSpeaking)
+                                                --StopPedSpeaking(policePed, StopPoliceSpeaking)
                                                 if not GetCurrentPedWeapon(policePed, GetHashKey("WEAPON_FLASHLIGHT")) then
                                                         GiveWeaponToPed(policePed, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, true)
                                                 end
                                                 if not GetCurrentPedWeapon(policePed, GetHashKey("WEAPON_NIGHTSTICK")) then
                                                         GiveWeaponToPed(policePed, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
                                                 end
-                                                print("wanted level 1 - Police PED (" .. policePed .. ")")
-                                                if not IsPedRunningArrestTask(policePed) then
-                                                        ShowNotification("~r~Police~s~ are attempting to arrest you!")
-                                                        -- todo...
-                                                end
+
                                         end
                                 end
                         end
                         PlayerWantedCheck = true
                 end
 
-                -- level 2 police will now get tasers and still attempt to arrest you
+                -- level 2 police will now use tasers and attempt to arrest you
                 if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) == 2 then
+                        print("Wanted Level 2 - Police are now going to use tasers and arrest you")
                         for index, entity in pairs(GetGamePool("CPed")) do
                                 -- assigning entity.. also consider peds in vehicles
                                 if IsEntityAPed(entity) then
@@ -236,7 +163,7 @@ Citizen.CreateThread(function()
                                         local isdead = IsEntityDead(policePed)
                                         if policePed ~= playerPed and not isdead then
                                                 RemoveAllPedWeapons(policePed, true)
-                                                StopPedSpeaking(policePed, StopPoliceSpeaking)
+                                                --StopPedSpeaking(policePed, StopPoliceSpeaking)
                                                 if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
                                                         GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
                                                 end
@@ -261,6 +188,7 @@ Citizen.CreateThread(function()
 
                 -- level 3 police start using pistols now
                 if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 3 then
+                        print("Wanted Level 3 - Police are now using lethal force")
                         for index, entity in pairs(GetGamePool("CPed")) do
                                 -- assigning entity.. also consider peds in vehicles
                                 if IsEntityAPed(entity) then
@@ -278,7 +206,7 @@ Citizen.CreateThread(function()
                                         if policePed ~= playerPed and not isdead then
                                                 ClearPedTasks(policePed)
                                                 RemoveAllPedWeapons(policePed, true)
-                                                StopPedSpeaking(policePed, StopPoliceSpeaking)
+                                                --StopPedSpeaking(policePed, StopPoliceSpeaking)
                                                 if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
                                                         GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
                                                 end
@@ -300,6 +228,7 @@ Citizen.CreateThread(function()
 
                 -- level 5 police start using rifles
                 if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) >= 5 then
+                        print("Wanted Level 5 - Police are now using rifles")
                         for index, entity in pairs(GetGamePool("CPed")) do
                                 -- assigning entity.. also consider peds in vehicles
                                 if IsEntityAPed(entity) then
@@ -315,7 +244,7 @@ Citizen.CreateThread(function()
                                 if GetPedType(entity) == 7 then
                                         local isdead = IsEntityDead(policePed)
                                         if policePed ~= playerPed and not isdead then
-                                                StopPedSpeaking(policePed, StopPoliceSpeaking)
+                                                --StopPedSpeaking(policePed, StopPoliceSpeaking)
                                                 if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
                                                         GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
                                                 end
@@ -349,9 +278,10 @@ Citizen.CreateThread(function()
         while true do
                 Wait(1000) -- every 1 second
 
+                -- get closest PED that is police and in the line of sight of player
                 local ent, dist = GetClosestPolicePed()
-                --print("Police PED (" .. ent .. ") is closest to player and in line of sight. Distance (" .. dist .. ")")
 
+                -- traffic violations
                 if IsPedInAnyVehicle(PlayerPedId(), false) then
 
                         local playerveh = GetVehiclePedIsUsing(PlayerPedId())
@@ -390,7 +320,14 @@ Citizen.CreateThread(function()
                                                 SetPedHasAiBlipWithColor(ent, true, 1)
                                                 ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
                                         end
-                                        -- cop sees you run a redlight!!!
+                                        -- cop sees you driving a known wanted vehicle (evaded successfully)
+                                        if IsVehicleWanted(playerveh) then
+                                                ShowNotification("~r~Police~s~ witnessed you driving a known wanted vehicle!")
+                                                print("Police witnessed you driving a wanted vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
+                                                SetPedHasAiBlipWithColor(ent, true, 1)
+                                                ReportCrime(PlayerId(), 9, GetWantedLevelThreshold(1)) -- 9: ???
+                                        end
+                                        -- cop sees you run a red light
                                         local nearbyVehicles = {}
                                         for _, aiVehicle in pairs(GetGamePool("CVehicle")) do
                                                 if DoesEntityExist(aiVehicle) and aiVehicle ~= playerVehicle then
@@ -420,9 +357,9 @@ Citizen.CreateThread(function()
                                                         local playerHeading = GetEntityHeading(playerveh)
                                                         -- Calculate the angle difference between the AI vehicle and the player's vehicle
                                                         local angleDiff = math.abs(playerHeading - aiHeading)
-
+                                                        print('Red light calculation (' .. angleDiff .. ' <= ' .. angleThreshold .. ')')
                                                         -- Ensure the angle difference is within the threshold
-                                                        if angleDiff <= angleThreshold then
+                                                        if angleDiff >= -angleThreshold and angleDiff <= angleThreshold then
                                                                 -- The player ran a red light in front of the stopped AI vehicle
                                                                 ShowNotification("~r~Police~s~ witnessed you running a red light!")
                                                                 print("Police witnessed you running a red light! cop (" .. ent .. ") dist (" .. dist .. ")")
@@ -465,20 +402,8 @@ Citizen.CreateThread(function()
                                         end
                                 end
                         -- cop should be closeby to be able to report this
-                        elseif dist <= 25 then
-                                -- cop sees you driving a known wanted vehicle (evaded successfully)
-                                if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
-                                        if IsVehicleWanted(playerveh) then
-                                                VW_WarningCounter = VW_WarningCounter + 1
-                                                if VW_WarningCounter >= VW_WarningThreshold then
-                                                        ShowNotification("~r~Police~s~ witnessed you driving a wanted vehicle!")
-                                                        print("Police witnessed you driving a wanted vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
-                                                        SetPedHasAiBlipWithColor(ent, true, 1)
-                                                        ReportCrime(PlayerId(), 9, GetWantedLevelThreshold(1)) -- 9: ???
-                                                        VW_WarningCounter = 0
-                                                end
-                                        end
-                                end
+                        elseif dist <= 50 then
+
                         end
                 end
                 -- non-vehicle violations would go here
