@@ -1,0 +1,401 @@
+-- Crime types reference
+-- https://docs.fivem.net/natives/?_0xE9B09589827545E7
+
+-- debug mode (write info to console)
+local debug_enabled = true
+
+-- Amount allowed in seconds before these crimes are reported
+-- TOG: tires off ground, BO: burnouts, VW: vehicle wanted
+local TOG_WarningCounter = 0
+local TOG_WarningThreshold = 40
+local BO_WarningCounter = 0
+local BO_WarningThreshold = 30
+local VW_WarningCounter = 0
+local VW_WarningThreshold = 10
+
+-- Stop police from speaking
+local StopPoliceSpeaking = true
+
+-- Global speed limit that will trigger a wanted level (mph)
+local GlobalSpeedLimit = 80
+
+-- Maximum distance police PEDs can see player in their line of sight
+local MaxLosDist = 40
+
+-- Switch used for modifiying wanted level changes
+local PlayerWantedCheck = false
+
+-- Function for displaying notifications to player
+function ShowNotification(text)
+	SetNotificationTextEntry("STRING")
+	AddTextComponentString(text)
+	DrawNotification(false, false)
+end
+
+-- Function for returning the closest police ped
+function GetClosestPolicePed(coords)
+	local playerPed, closestEntity, closestDist, policePed = PlayerPedId(), -1, -1, -1
+	coords = coords or GetEntityCoords(playerPed)
+
+	for index, entity in pairs(GetGamePool("CPed")) do
+		-- assigning entity.. also consider peds in vehicles
+		if IsEntityAPed(entity) then
+			-- if ped is type 'PED_TYPE_COP'
+			if GetPedType(entity) == 7 then
+				if IsPedInAnyVehicle(entity, true) then
+					policePed = GetPedInVehicleSeat(entity, -1)
+				else
+					policePed = entity
+				end
+			end
+		end
+		if GetPedType(entity) == 7 then
+			local inlineofsight = HasEntityClearLosToEntity(playerPed, policePed, 17)
+			local isdead = IsEntityDead(policePed)
+			print("policePed " .. policePed)
+			print("playerPed " .. playerPed)
+			if not policePed ~= playerPed and not isdead and inlineofsight then
+				local distance = #(coords - GetEntityCoords(policePed))
+				if closestDist == -1 or distance < closestDist then
+					closestEntity = policePed
+					closestDist = distance
+				end
+			end
+		end
+	end
+	return closestEntity, closestDist
+end
+
+-- Modify police based on player wanted level
+Citizen.CreateThread(function()
+	while true do
+		Citizen.Wait(1000)
+		local policePed = -1
+
+		-- keep relationship set to respectful between police and player
+		SetRelationshipBetweenGroups(1, GetHashKey("police"), GetHashKey("PLAYER"))
+		SetRelationshipBetweenGroups(1, GetHashKey("PLAYER"), GetHashKey("police"))
+
+		-- checking for combat on level 1 and 2, go straight to 3 stars if you shoot while being chased
+		if IsPlayerWantedLevelGreater(PlayerId(), 0) then
+			if GetPlayerWantedLevel(PlayerId()) == 1 or GetPlayerWantedLevel(PlayerId()) == 2 then
+				if IsPlayerTargettingAnything(PlayerId()) then
+					if IsPedShooting(PlayerPedId()) then
+						print("Player is shooting a weapon, setting wanted level to 3")
+						SetPlayerWantedLevel(PlayerId(), 3, false)
+						SetPlayerWantedLevelNow(PlayerId(), false)
+						PlayerWantedCheck = false
+					end
+				end
+			end
+		end
+
+		-- level 1 initial code once you become wanted, police will attempt to arrest you
+		if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 1 then
+			for index, entity in pairs(GetGamePool("CPed")) do
+				-- assigning entity.. also consider peds in vehicles
+				if IsEntityAPed(entity) then
+					-- if ped is type 'PED_TYPE_COP'
+					if GetPedType(entity) == 7 then
+						if IsPedInAnyVehicle(entity, true) then
+							policePed = GetPedInVehicleSeat(entity, -1)
+						else
+							policePed = entity
+						end
+					end
+				end
+				if GetPedType(entity) == 7 then
+					local isdead = IsEntityDead(policePed)
+					if policePed ~= playerPed and not isdead then
+						RemoveAllPedWeapons(policePed, true)
+						StopPedSpeaking(policePed, StopPoliceSpeaking)
+						if not GetCurrentPedWeapon(policePed, GetHashKey("WEAPON_FLASHLIGHT")) then
+							GiveWeaponToPed(policePed, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, true)
+						end
+						if not GetCurrentPedWeapon(policePed, GetHashKey("WEAPON_NIGHTSTICK")) then
+							GiveWeaponToPed(policePed, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
+						end
+						print("wanted level 1 - Police PED (" .. policePed .. ")")
+						if not IsPedRunningArrestTask(policePed) then
+							ShowNotification("~r~Police~s~ are attempting to arrest you!")
+
+
+--todo:
+--							loadAnimDict( "random@arrests" )
+--							loadAnimDict( "random@arrests@busted" )
+--							if ( IsEntityPlayingAnim( player, "random@arrests@busted", "idle_a", 3 ) ) then
+--								
+--							end
+--
+--							ClearPedTasks(policePed)
+--							ClearPedTasksImmediately(policePed)
+--							PlayEntityAnim(policePed, "random@arrests@busted")
+--							TaskArrestPed(policePed, PlayerId())
+--							SetPedKeepTask(policePed, true)
+
+
+						end
+					end
+				end
+			end
+			PlayerWantedCheck = true
+		end
+
+		-- level 2 police will now get tasers and still attempt to arrest you
+		if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) == 2 then
+			for index, entity in pairs(GetGamePool("CPed")) do
+				-- assigning entity.. also consider peds in vehicles
+				if IsEntityAPed(entity) then
+					-- if ped is type 'PED_TYPE_COP'
+					if GetPedType(entity) == 7 then
+						if IsPedInAnyVehicle(entity, true) then
+							policePed = GetPedInVehicleSeat(entity, -1)
+						else
+							policePed = entity
+						end
+					end
+				end
+				if GetPedType(entity) == 7 then
+					local isdead = IsEntityDead(policePed)
+					if policePed ~= playerPed and not isdead then
+						RemoveAllPedWeapons(policePed, true)
+						StopPedSpeaking(policePed, StopPoliceSpeaking)
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_NIGHTSTICK")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_STUNGUN")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_STUNGUN"), 100, false, true)
+						end
+						if not IsPedRunningArrestTask(policePed) then
+							ShowNotification("~r~Police~s~ are attempting to stun you!")
+							ClearPedTasks(policePed)
+							ClearPedTasksImmediately(policePed)
+							TaskArrestPed(policePed, PlayerId())
+							SetPedKeepTask(policePed, true)
+						end
+					end
+				end
+			end
+			PlayerWantedCheck = false
+		end
+
+		-- level 3 police start using pistols now
+		if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 3 then
+			for index, entity in pairs(GetGamePool("CPed")) do
+				-- assigning entity.. also consider peds in vehicles
+				if IsEntityAPed(entity) then
+					-- if ped is type 'PED_TYPE_COP'
+					if GetPedType(entity) == 7 then
+						if IsPedInAnyVehicle(entity, true) then
+							policePed = GetPedInVehicleSeat(entity, -1)
+						else
+							policePed = entity
+						end
+					end
+				end
+				if GetPedType(entity) == 7 then
+					local isdead = IsEntityDead(policePed)
+					if policePed ~= playerPed and not isdead then
+						ClearPedTasks(policePed)
+						RemoveAllPedWeapons(policePed, true)
+						StopPedSpeaking(policePed, StopPoliceSpeaking)
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_NIGHTSTICK")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_STUNGUN")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_STUNGUN"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_COMBATPISTOL")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_COMBATPISTOL"), 150, false, true)
+						end
+						ShowNotification("~r~Police~s~ are attempting to shoot you!")
+					end
+				end
+			end
+			PlayerWantedCheck = true
+		end
+
+		-- level 5 police start using rifles
+		if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) >= 5 then
+			for index, entity in pairs(GetGamePool("CPed")) do
+				-- assigning entity.. also consider peds in vehicles
+				if IsEntityAPed(entity) then
+					-- if ped is type 'PED_TYPE_COP'
+					if GetPedType(entity) == 7 then
+						if IsPedInAnyVehicle(entity, true) then
+							policePed = GetPedInVehicleSeat(entity, -1)
+						else
+							policePed = entity
+						end
+					end
+				end
+				if GetPedType(entity) == 7 then
+					local isdead = IsEntityDead(policePed)
+					if policePed ~= playerPed and not isdead then
+						StopPedSpeaking(policePed, StopPoliceSpeaking)
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_FLASHLIGHT")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_FLASHLIGHT"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_NIGHTSTICK")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_STUNGUN")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_STUNGUN"), 100, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_COMBATPISTOL")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_COMBATPISTOL"), 150, false, false)
+						end
+						if not GetCurrentPedWeapon(entity, GetHashKey("WEAPON_CARBINERIFLE")) then
+							GiveWeaponToPed(entity, GetHashKey("WEAPON_CARBINERIFLE"), 300, false, true)
+						end
+						ShowNotification("~r~Police~s~ are attempting to kill you!")
+					end
+				end
+			end
+		end
+
+		-- reset things back to normal
+		if GetPlayerWantedLevel(PlayerId()) == 0 then
+			PlayerWantedCheck = false
+		end
+
+		-- always checking for animations ??? idk about this.. 
+--		if IsPedBeingArrested(PlayerPedId()) == true then
+--			PlayEntityAnim(PlayerPedId(), "random@arrests@busted")
+--		elseif IsPedCuffed(PlayerPedId()) == true then
+--			PlayEntityAnim(PlayerPedId(), "get_up@cuffed")
+--		end
+
+	end
+end)
+
+-- Get the closest police within line of sight and reports crimes on player
+Citizen.CreateThread(function()
+	while true do
+		Wait(1000)
+
+		local ent, dist = GetClosestPolicePed()
+--		print("Police PED (" .. ent .. ") is closest to player and in line of sight. Distance (" .. dist .. ")")
+
+		if IsPedInAnyVehicle(PlayerPedId(), false) then
+
+			local playerveh = GetVehiclePedIsUsing(PlayerPedId())
+			local speedmph = (GetEntitySpeed(playerveh) * 2.236936)
+
+			-- line of sight has no limit on distance, so we manually set threshold
+			if dist < MaxLosDist then
+				-- if player is not already wanted
+				if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+					-- cop sees you speeding in car
+					if speedmph > GlobalSpeedLimit then
+						ShowNotification("Speeding Violation! (~r~" .. speedmph .. " mph~s~)")
+						print("Speeding Violation! (" .. speedmph .. ") cop (" .. ent .. ") dist (" .. dist .. ")")
+						SetPedHasAiBlipWithColor(ent, true, 1)
+						ReportCrime(PlayerId(), 4, GetWantedLevelThreshold(1)) -- 4: Speeding vehicle (a "5-10")
+					end
+					-- cop sees you doing a wheelie
+					if GetVehicleWheelieState(playerveh) == 129 then
+						ShowNotification("~r~Police~s~ witnessed you doing a wheelie!")
+						print("Police witnessed you doing a wheelie! cop (" .. ent .. ") dist (" .. dist .. ")")
+						SetPedHasAiBlipWithColor(ent, true, 1)
+						ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
+					end
+					-- cop sees you driving known stolen vehicle
+					if IsVehicleStolen(playerveh) then
+						ShowNotification("~r~Police~s~ witnessed you driving a stolen vehicle!")
+						print("Police witnessed you driving a stolen vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
+						SetPedHasAiBlipWithColor(ent, true, 1)
+						ReportCrime(PlayerId(), 7, GetWantedLevelThreshold(1)) -- 7: Vehicle theft (a "5-0-3")
+					end
+					-- cop sees you hit any entity with vehicle
+					if HasEntityCollidedWithAnything(playerveh) then
+						ShowNotification("~r~Police~s~ witnessed bad driving!")
+						print("Police witnessed bad driving! cop (" .. ent .. ") dist (" .. dist .. ")")
+						SetPedHasAiBlipWithColor(ent, true, 1)
+						ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
+					end
+--					if GetTimeSincePlayerHitVehicle(PlayerId()) < 10 then
+--						ShowNotification("~r~Police~s~ witnessed you hitting a vehicle!")
+--						print("Police witnessed you hitting a vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
+--						SetPedHasAiBlipWithColor(ent, true, 1)
+--						ReportCrime(PlayerId(), 26, GetWantedLevelThreshold(1)) -- 26: Damage to property
+--					end
+					-- todo: cop sees you run redlight!!!
+					-- IsVehicleStoppedAtTrafficLights() + GetEntityHeading()
+					--
+				end
+				-- these are not based on wanted level, but use warning counters with thresholds instead
+				-- cop sees you doing some crazy stuff
+--				if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+--					if not IsVehicleOnAllWheels(playerveh) then
+--						TOG_WarningCounter = TOG_WarningCounter + 1
+--						if TOG_WarningCounter >= TOG_WarningThreshold then
+--							ShowNotification("~r~Police~s~ witnessed reckless driving!")
+--							print("Police witnessed reckless driving! cop (" .. ent .. ") dist (" .. dist .. ")")
+--							SetPedHasAiBlipWithColor(ent, true, 1)
+--							ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
+--							WarningCounter = 0
+--						end
+--					end
+--				end
+				-- cop sees you burnout
+				if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+					if IsVehicleInBurnout(playerveh) then
+						BO_WarningCounter = BO_WarningCounter + 1
+						if BO_WarningCounter >= BO_WarningThreshold then
+							ShowNotification("~r~Police~s~ witnessed your burnout!")
+							print("Police witnessed your burnout! cop (" .. ent .. ") dist (" .. dist .. ")")
+							SetPedHasAiBlipWithColor(ent, true, 1)
+							ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
+							BO_WarningCounter = 0
+						end
+					end
+				end
+			-- cop should be closeby to be able to report this
+			elseif dist <= 20 then
+				-- cop sees you driving a known wanted vehicle (evaded successfully)
+				if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+					if IsVehicleWanted(playerveh) then
+						VW_WarningCounter = VW_WarningCounter + 1
+						if VW_WarningCounter >= VW_WarningThreshold then
+							ShowNotification("~r~Police~s~ witnessed you driving a wanted vehicle!")
+							print("Police witnessed you driving a wanted vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
+							SetPedHasAiBlipWithColor(ent, true, 1)
+							ReportCrime(PlayerId(), 9, GetWantedLevelThreshold(1)) -- 9: ???
+							VW_WarningCounter = 0
+						end
+					end
+				end
+			end
+		end
+		-- non-vehicle violations would go here
+		-- cop sees you hit a vehicle
+		-- SwitchCrimeType() ??
+		-- HasPlayerDamagedAtLeastOneNonAnimalPed()
+		-- HasPlayerDamagedAtLeastOnePed()
+		-- bank robbery?
+		-- gas station robbery?
+		-- altercation? might make sense to have all PEDs report
+
+	end
+end)
+
+-- todo: disable control once player is doing animations? reset??
+Citizen.CreateThread(function()
+        while true do
+                Citizen.Wait(0)
+                if IsEntityPlayingAnim(GetPlayerPed(PlayerId()), "random@arrests@busted", "idle_a", 3) then
+                        DisableControlAction(1, 22, true)
+                        DisableControlAction(1, 32, true)
+                        DisableControlAction(1, 33, true)
+                        DisableControlAction(1, 34, true)
+                        DisableControlAction(1, 35, true)
+                end
+        end
+end)
