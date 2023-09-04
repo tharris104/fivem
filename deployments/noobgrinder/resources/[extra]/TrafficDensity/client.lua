@@ -1,7 +1,7 @@
 local config = {
 	pedFrequency = 1.0, -- max value 1.0
 	trafficFrequency = 1.0, -- max value 1.0
-	ambientEvents = true,
+	ambientEvents = true, -- built-in ambient events all enabled by default
 	maxPoliceSpawned = 5,  -- Set the maximum number of cops to be spawned in area
 	spawnDistance = 100.0,  -- Set the distance from the player where cops will spawn
 	copDespawnDistance = 750.0, -- Set the distance when cops are de-spawned
