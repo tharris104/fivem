@@ -6,7 +6,7 @@ local config = {
 	spawnDistance = 100.0,  -- Set the distance from the player where cops will spawn
 	copDespawnDistance = 750.0, -- Set the distance when cops are de-spawned
 	copDrivingStyle = 1074528677, -- https://vespura.com/fivem/drivingstyle/
-	showBlipsOnCops = false, -- disabled by default, will show a constant blip on any spawned cops
+	showBlipsOnCops = true, -- disabled by default, will show a constant blip on any spawned cops
 }
 
 local spawnedPolice = {}
@@ -14,7 +14,7 @@ local policeBlips = {}
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(1000)
+        Citizen.Wait(1000) -- once per second
 
         ----------------------------------
         ----------------------------------
@@ -57,7 +57,7 @@ Citizen.CreateThread(function()
         ----------------------------------
         ----------------------------------
 
-	-- Spawn police officers in vehicles and add a blip
+        -- Spawn police officers in vehicles and add a blip
         if config.ambientEvents then
             if IsPedInAnyVehicle(PlayerPedId(), false) then
                 local playerPed = PlayerId()
@@ -95,12 +95,10 @@ Citizen.CreateThread(function()
                     TaskVehicleDriveWander(ped, vehicle, 20.0, config.copDrivingStyle, heading)
 
                     -- Record and log spawned cop
-                    print('Spawned cop vehicle (' .. vehicle .. ')')
                     table.insert(spawnedPolice, {vehicle, ped})
 
                     -- Add a blip to the police vehicle
                     if config.showBlipsOnCops then
-                        print('Added blip to cop (' .. vehicle .. ')')
                         local blip = AddBlipForEntity(vehicle)
                         SetBlipSprite(blip, 41) -- Set the blip sprite to police blip
                         SetBlipScale(blip, 0.5)
@@ -115,7 +113,6 @@ Citizen.CreateThread(function()
                         local ped = policeData[2] -- Access the ped directly
                         local distance = GetDistanceBetweenCoords(playerPos.x, playerPos.y, playerPos.z, GetEntityCoords(vehicle))
                         if distance > config.copDespawnDistance then
-                            print('Removing vehicle (' .. vehicle .. ') distance is now (' .. distance .. ')')
                             if config.showBlipsOnCops then
                                 local blip = policeBlips[i]
                                 RemoveBlip(blip)
