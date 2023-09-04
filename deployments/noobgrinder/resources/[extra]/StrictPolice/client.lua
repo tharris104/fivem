@@ -5,7 +5,7 @@
 local debug_enabled = true
 
 -- Global speed limit that will trigger a wanted level (mph)
-local GlobalSpeedLimit = 85
+local GlobalSpeedLimit = 130 -- default 85
 
 -- Amount allowed in seconds before these crimes are reported
 -- TOG: tires off ground, BO: burnouts, VW: vehicle wanted
@@ -29,6 +29,10 @@ local MaxLosDist = 150
 -- Switch used for modifying wanted level changes
 local PlayerWantedCheck = false
 
+-- Variables used for police pursuit
+local policePeds = {} -- Store the police peds you want to control
+local isPlayerStopped = false -- When chasing, always check if player is stopped
+
 -- Function for displaying notifications to player
 function ShowNotification(text)
         SetNotificationTextEntry("STRING")
@@ -51,6 +55,26 @@ function IsPlayerInPedFOV(ped, player)
         else
                 return false -- Player is outside the field of view
         end
+end
+
+-- Function to call when ped should attempt an arrest on the player
+function AttemptArrest(policePed)
+        local playerPed = PlayerPedId()
+        -- Check if the player is within a certain range before attempting arrest
+        local distance = #(GetEntityCoords(policePed) - GetEntityCoords(playerPed))
+        if distance < 2.0 then
+
+        end
+end
+
+-- Function to check if the players movement is stopped
+function CheckPlayerStopped()
+        local prevCoords = GetEntityCoords(playerPed)
+        Citizen.Wait(1000) -- Wait for 1 second
+        local currentCoords = GetEntityCoords(playerPed)
+
+        -- Check if the player has moved significantly in the last second
+        isPlayerStopped = #(currentCoords - prevCoords) < 0.1
 end
 
 -- Function for returning the closest police ped
@@ -85,11 +109,64 @@ function GetClosestPolicePed(coords)
         return closestPed, closestDist
 end
 
+-- Function for returning the closest amount of peds
+function GetClosestPolicePeds(coords)
+        local playerPed = PlayerPedId()
+        local policePeds = {}
+        coords = coords or GetEntityCoords(playerPed)
+
+        for _, entity in pairs(GetGamePool("CPed")) do
+                if IsEntityAPed(entity) and GetPedType(entity) == 7 then -- Ped is a cop
+                        local policePed
+                        if IsPedInAnyVehicle(entity, true) then
+                                policePed = GetPedInVehicleSeat(entity, -1)
+                        else
+                                policePed = entity
+                        end
+
+                        if DoesEntityExist(policePed) then
+                                local isDead = IsEntityDead(policePed)
+                                local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
+                                local distance = #(coords - GetEntityCoords(policePed))
+                                if not isDead and isPlayerInFOV then
+                                        table.insert(policePeds, {ped = policePed, dist = distance})
+                                end
+                        end
+                end
+        end
+
+        -- Sort the policePeds table by distance in ascending order
+        table.sort(policePeds, function(a, b) return a.dist < b.dist end)
+
+        local closestPolicePeds = {}
+        local maxClosestPeds = 5
+
+        for i, data in ipairs(policePeds) do
+                if i <= maxClosestPeds then
+                        table.insert(closestPolicePeds, data.ped)
+                else
+                        break
+                end
+        end
+
+        return closestPolicePeds
+end
+
+-- Thread to check player movement
+Citizen.CreateThread(function()
+        while true do
+                CheckPlayerStopped()
+                Citizen.Wait(1000) -- every 1 second
+        end
+end)
+
 -- Modify police behavior based on players wanted level
 Citizen.CreateThread(function()
         while true do
                 Citizen.Wait(1000) -- every 1 second
                 local policePed = -1
+                local playerCoords = GetEntityCoords(PlayerPedId())
+                local closestPolicePeds = GetClosestPolicePeds(playerCoords)
 
                 -- keep relationship set to respectful between police and player
                 SetRelationshipBetweenGroups(1, GetHashKey("police"), GetHashKey("PLAYER"))
@@ -109,6 +186,9 @@ Citizen.CreateThread(function()
                         end
                 end
 
+                ----------------------------------
+                ----------------------------------
+                ----------------------------------
                 -- level 1 initial code once you become wanted, police will attempt to arrest you
                 if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 1 then
                         print("Wanted Level 1 - Police will attempt to write you a citation")
@@ -135,13 +215,57 @@ Citizen.CreateThread(function()
                                                 if not GetCurrentPedWeapon(policePed, GetHashKey("WEAPON_NIGHTSTICK")) then
                                                         GiveWeaponToPed(policePed, GetHashKey("WEAPON_NIGHTSTICK"), 100, false, false)
                                                 end
+                                                ----------------------------------
+                                                -- loop through all nearby police peds and arrest player
+                                                for _, nearbyPolicePed in ipairs(closestPolicePeds) do
+                                                        local vehicle = GetVehiclePedIsIn(nearbyPolicePed, false)
+                                                        -- Check if the police ped is in a vehicle and the player is in a vehicle
+                                                        if DoesEntityExist(vehicle) and IsEntityAVehicle(vehicle) then
+                                                                local playerVehicle = GetVehiclePedIsIn(playerPed, false)
 
+                                                                -- Check if the player is in a vehicle
+                                                                if DoesEntityExist(playerVehicle) and IsEntityAVehicle(playerVehicle) then
+                                                                        local playerSeat = GetPedInVehicleSeat(playerVehicle, -1)
+
+                                                                        -- Check if the player is in the driver's seat
+                                                                        if playerSeat == playerPed then
+                                                                                -- Attempt to remove the player from the vehicle
+                                                                                TaskLeaveVehicle(policePed, vehicle, 256) -- 256 is a flag to make the ped leave immediately
+                                                                                Citizen.Wait(1000) -- Wait for 1 second
+                                                                                AttemptArrest(policePed) -- Attempt to arrest the player
+                                                                        end
+                                                                end
+                                                        -- Police ped is not in any vehicle, approach player and attempt arrest
+                                                        elseif not DoesEntityExist(vehicle) or not IsEntityAVehicle(vehicle) then
+                                                                local policeCoords = GetEntityCoords(policePed)
+                                                                local distance = #(playerCoords - policeCoords)
+
+                                                                -- Check if the police ped is close enough to the player to approach
+                                                                if distance < 5.0 then
+                                                                        -- Stop the police ped from wandering around
+                                                                        TaskStandStill(policePed, -1)
+
+                                                                        -- Face the player
+                                                                        TaskTurnPedToFaceEntity(policePed, playerPed, -1)
+
+                                                                        -- Attempt to arrest the player
+                                                                        AttemptArrest(policePed)
+                                                                else
+                                                                        -- If distance is greater than or equal to 5, make the police ped approach the player
+                                                                        TaskGoToEntity(policePed, playerPed, -1, 5.0, 100.0, 0, 0)
+                                                                end
+                                                        end
+                                                end
+                                                ----------------------------------
                                         end
                                 end
                         end
                         PlayerWantedCheck = true
                 end
 
+                ----------------------------------
+                ----------------------------------
+                ----------------------------------
                 -- level 2 police will now use tasers and attempt to arrest you
                 if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) == 2 then
                         print("Wanted Level 2 - Police are now going to use tasers and arrest you")
@@ -184,6 +308,9 @@ Citizen.CreateThread(function()
                         PlayerWantedCheck = false
                 end
 
+                ----------------------------------
+                ----------------------------------
+                ----------------------------------
                 -- level 3 police start using pistols now
                 if PlayerWantedCheck == false and GetPlayerWantedLevel(PlayerId()) == 3 then
                         print("Wanted Level 3 - Police are now using lethal force")
@@ -224,6 +351,9 @@ Citizen.CreateThread(function()
                         PlayerWantedCheck = true
                 end
 
+                ----------------------------------
+                ----------------------------------
+                ----------------------------------
                 -- level 5 police start using rifles
                 if PlayerWantedCheck == true and GetPlayerWantedLevel(PlayerId()) >= 5 then
                         print("Wanted Level 5 - Police are now using rifles")
