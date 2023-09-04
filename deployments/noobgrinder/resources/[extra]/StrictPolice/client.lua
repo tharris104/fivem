@@ -13,8 +13,6 @@ local TOG_WarningCounter = 0
 local TOG_WarningThreshold = 20
 local BO_WarningCounter = 0
 local BO_WarningThreshold = 20
-local VW_WarningCounter = 0
-local VW_WarningThreshold = 10
 
 -- Running a red light options:
 -- Distance from player to detect vehicles near player
@@ -87,7 +85,7 @@ function GetClosestPolicePed(coords)
         return closestPed, closestDist
 end
 
--- Modify police based on player wanted level
+-- Modify police behavior based on players wanted level
 Citizen.CreateThread(function()
         while true do
                 Citizen.Wait(1000) -- every 1 second
@@ -349,22 +347,22 @@ Citizen.CreateThread(function()
                                                 local aiHeading = aiData.heading
                                                 local distance = aiData.dist
 
-                                                -- Check if the AI vehicle is stopped at a red light
-                                                local isStoppedAtRedLight = IsVehicleStoppedAtRedLight(aiVehicle)
-
-                                                if isStoppedAtRedLight then
-                                                        -- Collect the player heading
-                                                        local playerHeading = GetEntityHeading(playerveh)
-                                                        -- Calculate the angle difference between the AI vehicle and the player's vehicle
-                                                        local angleDiff = math.abs(playerHeading - aiHeading)
-                                                        print('Red light calculation (' .. angleDiff .. ' <= ' .. angleThreshold .. ')')
-                                                        -- Ensure the angle difference is within the threshold
-                                                        if angleDiff >= -angleThreshold and angleDiff <= angleThreshold then
-                                                                -- The player ran a red light in front of the stopped AI vehicle
-                                                                ShowNotification("~r~Police~s~ witnessed you running a red light!")
-                                                                print("Police witnessed you running a red light! cop (" .. ent .. ") dist (" .. dist .. ")")
-                                                                SetPedHasAiBlipWithColor(ent, true, 1)
-                                                                ReportCrime(PlayerId(), 10, GetWantedLevelThreshold(1)) -- 10: Traffic violation (customize the crime code as needed)
+                                                if aiVehicle and DoesEntityExist(aiVehicle) then
+                                                        -- Check if the AI vehicle is stopped at a red light
+                                                        if IsVehicleStoppedAtRedLight(aiVehicle) then
+                                                                -- Collect the player heading
+                                                                local playerHeading = GetEntityHeading(playerveh)
+                                                                -- Calculate the angle difference between the AI vehicle and the player's vehicle
+                                                                local angleDiff = math.abs(playerHeading - aiHeading)
+                                                                print('Red light calculation (' .. angleDiff .. ' <= ' .. angleThreshold .. ')')
+                                                                -- Ensure the angle difference is within the threshold
+                                                                if angleDiff >= -angleThreshold and angleDiff <= angleThreshold then
+                                                                        -- The player ran a red light in front of the stopped AI vehicle
+                                                                        ShowNotification("~r~Police~s~ witnessed you running a red light!")
+                                                                        print("Police witnessed you running a red light! cop (" .. ent .. ") dist (" .. dist .. ")")
+                                                                        SetPedHasAiBlipWithColor(ent, true, 1)
+                                                                        ReportCrime(PlayerId(), 10, GetWantedLevelThreshold(1)) -- 10: Traffic violation (customize the crime code as needed)
+                                                                end
                                                         end
                                                 end
                                         end
