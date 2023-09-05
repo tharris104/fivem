@@ -159,9 +159,10 @@ end
 
 -- Function to find a valid sidewalk position near the given coordinates
 function FindValidSidewalkPosition(coords)
-    local sidewalkCoords = GetClosestObjectOfType(coords.x, coords.y, coords.z, 5.0, GetHashKey("prop_sidewalk_mp"), false, false, false)
+    local sidewalkObject = GetClosestObjectOfType(coords.x, coords.y, coords.z, 5.0, GetHashKey("prop_sidewalk_mp"), false, false, false)
 
-    if sidewalkCoords then
+    if sidewalkObject ~= 0 then
+        local sidewalkCoords = GetEntityCoords(sidewalkObject)
         -- If a valid sidewalk object was found, spawn the pedestrian slightly above it
         sidewalkCoords.z = sidewalkCoords.z + 1.0
         return sidewalkCoords
