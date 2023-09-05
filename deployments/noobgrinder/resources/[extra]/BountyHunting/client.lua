@@ -147,8 +147,6 @@ end)
 -- Event handler to remove the bounty PED and blip when the player dies
 RegisterNetEvent("playerDied")
 AddEventHandler("playerDied", function()
-    local playerName = GetPlayerName(PlayerId())
-    print(playerName .. ' failed to collect the bounty')
     if DoesEntityExist(globalTargetPed) then
         DeleteEntity(globalTargetPed)
     end
@@ -231,8 +229,8 @@ end
 
 function GiveRewardToPlayer(amount)
     local playerPed = PlayerId()
-    local currentMoney = GetPlayerMoney(playerPed)
-    SetPlayerMoney(playerPed, currentMoney + amount, false)
+    local currentMoney = GetPedMoney(playerPed)
+    SetPedMoney(playerPed, currentMoney + amount, false)
     ShowNotification("~s~You earned $" .. amount)
 end
 
