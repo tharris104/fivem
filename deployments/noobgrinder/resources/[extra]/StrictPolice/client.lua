@@ -5,7 +5,7 @@
 local debug_enabled = true
 
 -- Global speed limit that will trigger a wanted level (mph)
-local GlobalSpeedLimit = 130 -- default 85
+local GlobalSpeedLimit = 85 -- default 85
 
 -- Amount allowed in seconds before these crimes are reported
 -- TOG: tires off ground, BO: burnouts, VW: vehicle wanted
@@ -24,7 +24,7 @@ local angleThreshold = 90.0
 local StopPoliceSpeaking = true -- todo: doesnt really work as expected..
 
 -- Maximum distance police PEDs can see player in their line of sight
-local MaxLosDist = 150
+local MaxLosDist = 50
 
 -- Switch used for modifying wanted level changes
 local PlayerWantedCheck = false
