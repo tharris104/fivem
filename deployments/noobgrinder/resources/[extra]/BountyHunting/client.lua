@@ -97,9 +97,7 @@ bountyMenu = NativeUI.CreateMenu("Bounty Menu", "~g~Choose the bounty you wish t
 _menuPool:Add(bountyMenu)
 bountyMenu.SetMenuWidthOffset(50);
 function initMenu(menu)
-    table.sort(bounties)
     for index, bounty in pairs(bounties) do
-        print('adding ' .. bounty.name)
         local entry = NativeUI.CreateItem(bounty.name, "Reward: $" .. bounty.reward .. " Info: " .. bounty.story)
         bountyMenu:AddItem(entry)
         entry.Activated = function(ParentMenu, SelectedItem)
@@ -119,10 +117,10 @@ _menuPool:ControlDisablingEnabled(false)
 RegisterNetEvent("createBountyBlip")
 AddEventHandler("createBountyBlip", function(selectedBounty)
     local playerName = GetPlayerName(PlayerId())
-    print(playerName .. ' accepted bounty hunter job!')
-    local targetPed = CreateBountyPed(selectedBounty)
+    print(playerName .. ' accepted a bounty job for (' .. selectedBounty.name .. ')')
+    local targetPed = CreateBountyPed(selectedBounty, config.pedBountySpawnMinDistance, config.pedBountySpawnMaxDistance)
     local blip = AddBlipForEntity(targetPed)
-    SetBlipSprite(blip, 84) -- Red blip
+    SetBlipSprite(blip, 84) -- skull blip
     SetBlipDisplay(blip, 2)
     SetBlipScale(blip, 0.7)
     SetBlipNameToPlayerName(blip, targetPed)
@@ -196,7 +194,7 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
     GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
 
     -- Put PED into vehicle is model was passed
-    if bountData.vehicle_model then
+    if bountyData.vehicle_model then
         RequestModel(vehichle_modelHash)
         while not HasModelLoaded(car) do
             Wait(500)
