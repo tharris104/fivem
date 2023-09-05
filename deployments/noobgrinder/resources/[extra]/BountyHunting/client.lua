@@ -165,6 +165,12 @@ AddEventHandler("bountyDied", function(bountyName)
         RemoveBlip(globalBlip)
         bountyStatus[bountyName] = "dead" -- Update the bounty's status to "dead"
 
+        local bountyPed = globalTargetPed
+        if DoesEntityExist(bountyPed) then
+            print('bounty has returned to the engines memory')
+            SetEntityAsNoLongerNeeded(bountyPed)
+        end
+
         -- Find the bounty by name and retrieve its reward amount
         local rewardAmount = 0 -- Default reward amount if not found
         for _, bounty in pairs(bounties) do
