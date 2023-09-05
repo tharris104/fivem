@@ -4,6 +4,7 @@ local config = {
     pedBountySpawnMaxDistance = 1500.0, -- spawn bount maximum of 1500 meters away
     openBountyMenuKey = 29, -- default key bind (B), only works inside the marker
     markerDisplayDistance = 12.0, -- distance in which to draw markers
+    pedDrivingStyle = 786603, -- https://vespura.com/fivem/drivingstyle/
 }
 
 -- Define where bounty jobs can be accepted (coordinates)
@@ -114,6 +115,7 @@ _menuPool:MouseEdgeEnabled (false)
 _menuPool:ControlDisablingEnabled(false)
 
 -- Event handler to create a red blip for the selected bounty
+local globalTargetPed, globalBlip
 RegisterNetEvent("createBountyBlip")
 AddEventHandler("createBountyBlip", function(selectedBounty)
     local playerName = GetPlayerName(PlayerId())
@@ -123,9 +125,31 @@ AddEventHandler("createBountyBlip", function(selectedBounty)
     SetBlipSprite(blip, 84) -- skull blip
     SetBlipDisplay(blip, 2)
     SetBlipScale(blip, 0.7)
-    SetBlipNameToPlayerName(blip, targetPed)
+    SetBlipNameToPlayerName(blip, false) -- Disable the player name display
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString(selectedBounty.name) -- Set the blip name to the bounty target's name
+    EndTextCommandSetBlipName(blip)
     SetBlipAsShortRange(blip, false)
     _menuPool:CloseAllMenus()
+
+    -- Store the targetPed and blip as global variables
+    globalTargetPed = targetPed
+    globalBlip = blip
+
+end)
+
+-- Event handler to remove the bounty PED and blip when the player dies
+RegisterNetEvent("playerDied")
+AddEventHandler("playerDied", function()
+    local playerName = GetPlayerName(PlayerId())
+    print(playerName .. ' failed to collect the bounty')
+    if DoesEntityExist(globalTargetPed) then
+        DeleteEntity(globalTargetPed)
+    end
+    if DoesBlipExist(globalBlip) then
+        RemoveBlip(globalBlip)
+    end
+
 end)
 
 -- Function for displaying notifications to player
@@ -167,23 +191,44 @@ function FindValidSidewalkPosition(coords)
         sidewalkCoords.z = sidewalkCoords.z + 1.0
         return sidewalkCoords
     else
-        print('Warning: Sidewalk coords could not be found')
+        print('Warning: Sidewalk coords could not be found. Returning original coords')
         return coords
     end
 end
 
 -- Function to generate random spawn coordinates within the specified distance range
 function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
-    local angle = math.rad(math.random(0, 360)) -- Random angle in radians
-    local distance = math.random(minDistance, maxDistance) -- Random distance within the specified range
+    local attempts = 0
+    local maxAttempts = 10 -- Maximum number of attempts to find a valid spawn point
 
-    local spawnCoords = {
-        x = playerCoords.x + distance * math.cos(angle),
-        y = playerCoords.y + distance * math.sin(angle),
-        z = playerCoords.z
-    }
+    while attempts < maxAttempts do
+        print('Attempt (' .. attempts .. '/' .. maxAttempts .. ') to generate a random coords on solid ground')
+        local angle = math.rad(math.random(0, 360)) -- Random angle in radians
+        local distance = math.random(minDistance, maxDistance) -- Random distance within the specified range
 
-    return spawnCoords
+        local spawnCoords = {
+            x = playerCoords.x + distance * math.cos(angle),
+            y = playerCoords.y + distance * math.sin(angle),
+            z = playerCoords.z
+        }
+
+        -- Check if the spawnCoords are on solid ground
+        local _, groundZ = GetGroundZFor_3dCoord(spawnCoords.x, spawnCoords.y, spawnCoords.z + 1.0, false)
+        local validSpawn = false
+
+        if groundZ ~= 0 and (spawnCoords.z - groundZ) < 2.0 then
+            validSpawn = true
+        end
+
+        if validSpawn then
+            print('Updated random coords')
+            return spawnCoords -- Return valid spawn coordinates
+        end
+
+        attempts = attempts + 1
+    end
+
+    return playerCoords
 end
 
 -- Function to create a random PED within a specified distance from the player
@@ -195,10 +240,6 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
 
     -- Find a valid sidewalk position from the random coords
     local sidewalkCoords = FindValidSidewalkPosition(spawnCoords)
-    if not sidewalkCoords then
-        print('Error: Could not find a nearby sidewalk, spawnCoords (' .. spawnCoords.x .. ',' .. spawnCoords.y .. ',' .. spawnCoords.z .. ')')
-        sidewalkCoords = spawnCoords -- Set it to spawnCoords if no valid sidewalk position is found
-    end
 
     -- Find the nearest road entity from the random coords
     local roadNode, _ = GetClosestVehicleNode(spawnCoords.x, spawnCoords.y, spawnCoords.z, 1, 3.0, 0)
@@ -214,7 +255,8 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
         if roadNode and roadNode.x and roadNode.y and roadNode.z then
             ped = CreatePed(4, modelHash, roadNode.x, roadNode.y, roadNode.z, 0.0, true, false)
         else
-            print('Error: Invalid roadNode coordinates')
+            print('Warning: Invalid roadNode coordinates. Using random spawnCoords instead')
+            ped = CreatePed(4, modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, 0.0, true, false)
         end
 
         -- Modify attributes of the PED
@@ -225,6 +267,12 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
         -- Give the PED a primary weapon
         GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
 
+        -- Task PED to be more aggressive towards player
+        TaskCombatPed(ped, PlayerPedId(), 0, 16) -- Makes ped attack the target ped. p2 should be 0, p3 should be 16
+        SetPedCombatAttributes(ped, 52, true) -- BF_IgnoreTrafficWhenDriving = 52,
+        SetPedFleeAttributes(ped, 0, true) -- Allow fleeing (will this even work?)
+        SetEntityIsTargetPriority(ped, true, 0) -- Set the PED as a high-priority target
+
         -- Generate Vehicle
         RequestModel(vehichle_modelHash)
         while not HasModelLoaded(car) do
@@ -234,6 +282,11 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
 
         -- Put PED into vehicle
         SetPedIntoVehicle(ped, veh, -1)
+
+        -- Make the PED drive the vehicle randomly
+        TaskVehicleDriveWander(ped, veh, 80.0, config.pedDrivingStyle)
+
+        -- Return PED
         return ped
 
     else
@@ -250,6 +303,15 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
 
         -- Give the PED a primary weapon
         GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
+
+        -- Task PED to be more aggressive towards player
+        TaskCombatPed(ped, PlayerPedId(), 0, 16) -- The last argument (16) sets the PED's combat behavior to "combat aggressive"
+        SetPedCombatAttributes(ped, 46, true) -- BF_AlwaysFight = 46,
+        SetPedFleeAttributes(ped, 0, true) -- Allow fleeing (will this even work?)
+        SetEntityIsTargetPriority(ped, true, 0) -- Set the PED as a high-priority target
+
+        -- Make the PED wander around on foot
+        TaskWanderStandard(ped, 10.0, 10) -- set p1 to 10.0f and p2 to 10 if you want the ped to walk anywhere without a duration.
 
         return ped
 
@@ -280,6 +342,11 @@ Citizen.CreateThread(function()
             end
         else
             isInsideMarker = false
+        end
+
+        -- Check if the player has died
+        if IsEntityDead(PlayerPedId()) then
+            TriggerEvent("playerDied")
         end
     end
 end)
