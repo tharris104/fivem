@@ -92,6 +92,9 @@ local bounties = {
     },
 }
 
+-- Define a table to store bounty status
+local bountyStatus = {}
+
 -- Initilize NativeUI menu
 _menuPool = NativeUI.CreatePool()
 bountyMenu = NativeUI.CreateMenu("Bounty Menu", "~g~Choose the bounty you wish to collect", 1430, 0)
@@ -136,6 +139,9 @@ AddEventHandler("createBountyBlip", function(selectedBounty)
     globalTargetPed = targetPed
     globalBlip = blip
 
+    -- Set the bounty status as alive
+    bountyStatus[selectedBounty.name] = "alive"
+
 end)
 
 -- Event handler to remove the bounty PED and blip when the player dies
@@ -150,6 +156,15 @@ AddEventHandler("playerDied", function()
         RemoveBlip(globalBlip)
     end
 
+end)
+
+-- Event handler to remove the blip when the bounty dies
+RegisterNetEvent("bountyDied")
+AddEventHandler("bountyDied", function(bountyName)
+    if globalBlip and bountyStatus[bountyName] == "alive" then
+        RemoveBlip(globalBlip)
+        bountyStatus[bountyName] = "dead" -- Update the bounty's status to "dead"
+    end
 end)
 
 -- Function for displaying notifications to player
@@ -348,5 +363,16 @@ Citizen.CreateThread(function()
         if IsEntityDead(PlayerPedId()) then
             TriggerEvent("playerDied")
         end
+
+        -- Check if the player has killed a bounty
+        for bountyName, status in pairs(bountyStatus) do
+            if status == "alive" then
+                local targetPed = globalTargetPed
+                if DoesEntityExist(targetPed) and IsEntityDead(targetPed) then
+                    TriggerEvent("bountyDied", bountyName) -- Trigger the "bountyDied" event
+                end
+            end
+        end
+
     end
 end)
