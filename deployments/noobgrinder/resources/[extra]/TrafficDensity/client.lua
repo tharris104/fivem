@@ -6,7 +6,7 @@ local config = {
 	copSpawnDistance = 100.0,  -- Set the distance from the player where cops will spawn
 	copDespawnDistance = 750.0, -- Set the distance when cops are de-spawned
 	copDrivingStyle = 1074528677, -- https://vespura.com/fivem/drivingstyle/
-	showBlipsOnCops = true, -- show a constant blip on any cops spawned from this script
+	showBlipsOnCops = false, -- show a constant blip on any cops spawned from this script
 }
 
 local spawnedPolice = {}
