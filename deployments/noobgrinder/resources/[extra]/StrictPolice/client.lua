@@ -443,12 +443,12 @@ Citizen.CreateThread(function()
                                                 ReportCrime(PlayerId(), 7, GetWantedLevelThreshold(1)) -- 7: Vehicle theft (a "5-0-3")
                                         end
                                         -- cop sees you hit any entity with vehicle
-                                        if HasEntityCollidedWithAnything(playerveh) then
-                                                ShowNotification("~r~Police~s~ witnessed bad driving!")
-                                                print("Police witnessed bad driving! cop (" .. ent .. ") dist (" .. dist .. ")")
-                                                SetPedHasAiBlipWithColor(ent, true, 1)
-                                                ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
-                                        end
+                                        --if HasEntityCollidedWithAnything(playerveh) then
+                                        --        ShowNotification("~r~Police~s~ witnessed bad driving!")
+                                        --        print("Police witnessed bad driving! cop (" .. ent .. ") dist (" .. dist .. ")")
+                                        --        SetPedHasAiBlipWithColor(ent, true, 1)
+                                        --        ReportCrime(PlayerId(), 3, GetWantedLevelThreshold(1)) -- 3: Reckless driver
+                                        --end
                                         -- cop sees you driving a known wanted vehicle (evaded successfully)
                                         if IsVehicleWanted(playerveh) then
                                                 ShowNotification("~r~Police~s~ witnessed you driving a known wanted vehicle!")
