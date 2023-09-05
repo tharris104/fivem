@@ -164,6 +164,18 @@ AddEventHandler("bountyDied", function(bountyName)
     if globalBlip and bountyStatus[bountyName] == "alive" then
         RemoveBlip(globalBlip)
         bountyStatus[bountyName] = "dead" -- Update the bounty's status to "dead"
+
+        -- Find the bounty by name and retrieve its reward amount
+        local rewardAmount = 0 -- Default reward amount if not found
+        for _, bounty in pairs(bounties) do
+            if bounty.name == bountyName then
+                rewardAmount = bounty.reward
+                break -- exit once bounty is located
+            end
+        end
+
+        GiveRewardToPlayer(rewardAmount)
+
     end
 end)
 
@@ -209,6 +221,13 @@ function FindValidSidewalkPosition(coords)
         print('Warning: Sidewalk coords could not be found. Returning original coords')
         return coords
     end
+end
+
+function GiveRewardToPlayer(amount)
+    local playerPed = PlayerId()
+    local currentMoney = GetPlayerMoney(playerPed)
+    SetPlayerMoney(playerPed, currentMoney + amount, false)
+    ShowNotification("~s~You earned $" .. amount)
 end
 
 -- Function to generate random spawn coordinates within the specified distance range
