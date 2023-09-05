@@ -91,35 +91,28 @@ local bounties = {
     },
 }
 
--- Function to create a NativeUI menu for accepting bounties
-function CreateBountyMenu()
-    -- initilize menu
-    _menuPool = NativeUI.CreatePool()
-    bountyMenu = NativeUI.CreateMenu("Bounty Menu", "~g~Choose the bounty you wish to collect", 1430, 0)
-    _menuPool:Add(bountyMenu)
-    bountyMenu.SetMenuWidthOffset(50);
-
-    -- sort and add entries from table above
+-- Initilize NativeUI menu
+_menuPool = NativeUI.CreatePool()
+bountyMenu = NativeUI.CreateMenu("Bounty Menu", "~g~Choose the bounty you wish to collect", 1430, 0)
+_menuPool:Add(bountyMenu)
+bountyMenu.SetMenuWidthOffset(50);
+function initMenu(menu)
     table.sort(bounties)
     for index, bounty in pairs(bounties) do
+        print('adding ' .. bounty.name)
         local entry = NativeUI.CreateItem(bounty.name, "Reward: $" .. bounty.reward .. " Info: " .. bounty.story)
         bountyMenu:AddItem(entry)
+        entry.Activated = function(ParentMenu, SelectedItem)
+            local selectedBounty = bounties[index]
+            TriggerEvent("createBountyBlip", selectedBounty)
+        end
     end
-
-    -- menu parameters
-    _menuPool:RefreshIndex()
-    _menuPool:MouseControlsEnabled (false)
-    _menuPool:MouseEdgeEnabled (false)
-    _menuPool:ControlDisablingEnabled(false)
-
-    -- handle bounty selection and blip creation here
-    bountyMenu.OnItemSelect = function(menu, selectedItem, index)
-        local selectedBounty = bounties[index]
-        TriggerEvent("createBountyBlip", selectedBounty)
-    end
-
-    return bountyMenu
 end
+-- menu parameters
+_menuPool:RefreshIndex()
+_menuPool:MouseControlsEnabled (false)
+_menuPool:MouseEdgeEnabled (false)
+_menuPool:ControlDisablingEnabled(false)
 
 -- Event handler to create a red blip for the selected bounty
 RegisterNetEvent("createBountyBlip")
