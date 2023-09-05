@@ -91,6 +91,51 @@ local bounties = {
     },
 }
 
+-- Function to create a NativeUI menu for accepting bounties
+function CreateBountyMenu()
+    -- initilize menu
+    _menuPool = NativeUI.CreatePool()
+    bountyMenu = NativeUI.CreateMenu("Bounty Menu", "~g~Choose the bounty you wish to collect", 1430, 0)
+    _menuPool:Add(bountyMenu)
+    bountyMenu.SetMenuWidthOffset(50);
+
+    -- sort and add entries from table above
+    table.sort(bounties)
+    for index, bounty in pairs(bounties) do
+        local entry = NativeUI.CreateItem(bounty.name, "Reward: $" .. bounty.reward .. " Info: " .. bounty.story)
+        bountyMenu:AddItem(entry)
+    end
+
+    -- menu parameters
+    _menuPool:RefreshIndex()
+    _menuPool:MouseControlsEnabled (false)
+    _menuPool:MouseEdgeEnabled (false)
+    _menuPool:ControlDisablingEnabled(false)
+
+    -- handle bounty selection and blip creation here
+    bountyMenu.OnItemSelect = function(menu, selectedItem, index)
+        local selectedBounty = bounties[index]
+        TriggerEvent("createBountyBlip", selectedBounty)
+    end
+
+    return bountyMenu
+end
+
+-- Event handler to create a red blip for the selected bounty
+RegisterNetEvent("createBountyBlip")
+AddEventHandler("createBountyBlip", function(selectedBounty)
+    local playerName = GetPlayerName(PlayerId())
+    print(playerName .. ' accepted bounty hunter job!')
+    local targetPed = CreateRandomPed(selectedBounty.weapon)
+    local blip = AddBlipForEntity(targetPed)
+    SetBlipSprite(blip, 84) -- Red blip
+    SetBlipDisplay(blip, 2)
+    SetBlipScale(blip, 0.7)
+    SetBlipNameToPlayerName(blip, targetPed)
+    SetBlipAsShortRange(blip, false)
+    _menuPool:CloseAllMenus()
+end)
+
 -- Function for displaying notifications to player
 function ShowNotification(text)
     SetNotificationTextEntry("STRING")
@@ -119,38 +164,6 @@ function IsPlayerInBountyArea(playerCoords)
     end
     return false, nil
 end
-
--- Function to create a NativeUI menu for accepting bounties
-function CreateBountyMenu()
-    local bountyMenu = NativeUI.CreateMenu("Bounty Hunter", "Choose a bounty:")
-
-    -- Add options to the menu (e.g., bounties)
-    for _, bounty in pairs(bounties) do
-        local bountyItem = NativeUI.CreateItem(bounty.name, "Reward: $" .. bounty.reward .. " Info: " .. bounty.story)
-        bountyMenu:AddItem(bountyItem)
-    end
-
-    bountyMenu.OnItemSelect = function(menu, selectedItem, index)
-        -- Handle bounty selection and blip creation here
-        local selectedBounty = bounties[index]
-        -- Check if the bounty can be taken dead or alive
-        TriggerEvent("createBountyBlip", selectedBounty)
-    end
-
-    return bountyMenu
-end
-
--- Event handler to create a red blip for the selected bounty
-RegisterNetEvent("createBountyBlip")
-AddEventHandler("createBountyBlip", function(selectedBounty)
-    local targetPed = CreateRandomPed(selectedBounty.weapon)
-    local blip = AddBlipForEntity(targetPed)
-    SetBlipSprite(blip, 84) -- Red blip
-    SetBlipDisplay(blip, 2)
-    SetBlipScale(blip, 0.7)
-    SetBlipNameToPlayerName(blip, targetPed)
-    SetBlipAsShortRange(blip, false)
-end)
 
 -- Function to generate random spawn coordinates within the specified distance range
 function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
@@ -207,6 +220,7 @@ Citizen.CreateThread(function()
 
     while true do
         Citizen.Wait(0)
+        _menuPool:ProcessMenus()
 
         local playerCoords = GetEntityCoords(PlayerPedId())
         local isInBountyArea, location = IsPlayerInBountyArea(playerCoords)
@@ -215,8 +229,7 @@ Citizen.CreateThread(function()
             DrawMarker(1, location.x, location.y, location.z - 1.0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 255, 0, 0, 200, false, false, 2, nil, nil, false)
 
             if IsControlJustPressed(0, config.openBountyMenuKey) then -- Replace with the desired control key
-                local bountyMenu = CreateBountyMenu()
-                bountyMenu:Visible(true)
+                bountyMenu:Visible(not bountyMenu:Visible())
             end
 
             if IsPlayerInBountyMarker(playerCoords) and isInsideMarker == false then
