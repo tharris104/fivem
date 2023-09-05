@@ -3,10 +3,10 @@ local config = {
 	trafficFrequency = 1.0, -- max value 1.0
 	ambientEvents = true, -- built-in ambient events all enabled by default
 	maxPoliceSpawned = 5,  -- Set the maximum number of cops to be spawned in area
-	spawnDistance = 100.0,  -- Set the distance from the player where cops will spawn
+	copSpawnDistance = 100.0,  -- Set the distance from the player where cops will spawn
 	copDespawnDistance = 750.0, -- Set the distance when cops are de-spawned
 	copDrivingStyle = 1074528677, -- https://vespura.com/fivem/drivingstyle/
-	showBlipsOnCops = true, -- disabled by default, will show a constant blip on any spawned cops
+	showBlipsOnCops = true, -- show a constant blip on any cops spawned from this script
 }
 
 local spawnedPolice = {}
@@ -64,7 +64,7 @@ Citizen.CreateThread(function()
                 local playerPos = GetEntityCoords(GetPlayerPed(-1))
 
                 -- Check the maximum number of cops spawned
-                if #spawnedPolice < config.maxPoliceSpawned and GetDistanceBetweenCoords(playerPos.x, playerPos.y, playerPos.z, spawnX, spawnY, playerPos.z, true) > config.spawnDistance then
+                if #spawnedPolice < config.maxPoliceSpawned and GetDistanceBetweenCoords(playerPos.x, playerPos.y, playerPos.z, spawnX, spawnY, playerPos.z, true) > config.copSpawnDistance then
                     local vehicleModel = "police" -- Adjust the police vehicle model as needed
                     local pedModel = "s_m_y_cop_01" -- Adjust the police ped model as needed
                 
@@ -77,7 +77,7 @@ Citizen.CreateThread(function()
 
                     -- Generate a random spawn location far from the player
                     local spawnX, spawnY = playerPos.x, playerPos.y
-                    while GetDistanceBetweenCoords(playerPos.x, playerPos.y, 0.0, spawnX, spawnY, 0.0, true) < config.spawnDistance do
+                    while GetDistanceBetweenCoords(playerPos.x, playerPos.y, 0.0, spawnX, spawnY, 0.0, true) < config.copSpawnDistance do
                         spawnX = playerPos.x + math.random(-500, 500) -- Adjust the range as needed
                         spawnY = playerPos.y + math.random(-500, 500) -- Adjust the range as needed
                     end
