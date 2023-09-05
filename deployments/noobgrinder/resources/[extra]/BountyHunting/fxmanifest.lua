@@ -5,4 +5,7 @@ author 'nemesis104'
 description 'Bounty Hunting system. Accept bounties at Police stations'
 version '1.0'
 
-client_script "client.lua"
+client_scripts {
+    '@NativeUI/NativeUI.lua',
+    'client.lua'
+}
