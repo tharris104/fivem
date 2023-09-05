@@ -157,6 +157,20 @@ function IsPlayerInBountyArea(playerCoords)
     return false, nil
 end
 
+-- Function to find a valid sidewalk position near the given coordinates
+function FindValidSidewalkPosition(coords)
+    local found, sidewalkCoords, normal = GetClosestObjectOfType(coords.x, coords.y, coords.z, 5.0, GetHashKey("prop_sidewalk_mp"), false, false, false)
+
+    if found then
+        -- If a valid sidewalk object is found, spawn the pedestrian slightly above it
+        sidewalkCoords.z = sidewalkCoords.z + 1.0
+        return sidewalkCoords
+    else
+        -- If no valid sidewalk object is found, use the original coordinates
+        return coords
+    end
+end
+
 -- Function to generate random spawn coordinates within the specified distance range
 function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
     local angle = math.rad(math.random(0, 360)) -- Random angle in radians
@@ -178,32 +192,67 @@ function CreateBountyPed(bountyData, minDistance, maxDistance)
     local playerCoords = GetEntityCoords(PlayerPedId())
     local spawnCoords = GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
 
+    -- Find a valid sidewalk position from the random coords
+    local sidewalkCoords = FindValidSidewalkPosition(spawnCoords)
+    if not sidewalkCoords then
+        print('Error: Could not find a nearby sidewalk, spawnCoords (' .. spawnCoords.x .. ',' .. spawnCoords.y .. ',' .. spawnCoords.z .. ')')
+        sidewalkCoords = spawnCoords -- Set it to spawnCoords if no valid sidewalk position is found
+    end
+
+    -- Find the nearest road entity from the random coords
+    local roadNode, _ = GetClosestVehicleNode(spawnCoords.x, spawnCoords.y, spawnCoords.z, 1, 3.0, 0)
+
     -- Generate PED
+    local ped
     RequestModel(modelHash)
     while not HasModelLoaded(modelHash) do
         Wait(1)
     end
-    local ped = CreatePed(4, modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, 0.0, true, false)
 
-    -- Modify attributes of the PED
-    SetEntityHealth(ped, 200) -- Set the health (default is 100)
-    SetPedAccuracy(ped, bountyData.accuracyModifier)
-    SetPedAlertness(ped, bountyData.alertnessModifier)
+    if vehicle_modelHash then
+        if roadNode and roadNode.x and roadNode.y and roadNode.z then
+            ped = CreatePed(4, modelHash, roadNode.x, roadNode.y, roadNode.z, 0.0, true, false)
+        else
+            print('Error: Invalid roadNode coordinates')
+        end
 
-    -- Give the PED a primary weapon
-    GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
+        -- Modify attributes of the PED
+        SetEntityHealth(ped, 200) -- Set the health (default is 100)
+        SetPedAccuracy(ped, bountyData.accuracyModifier)
+        SetPedAlertness(ped, bountyData.alertnessModifier)
 
-    -- Put PED into vehicle is model was passed
-    if bountyData.vehicle_model then
+        -- Give the PED a primary weapon
+        GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
+
+        -- Generate Vehicle
         RequestModel(vehichle_modelHash)
         while not HasModelLoaded(car) do
             Wait(500)
         end
         local veh = CreateVehicle(car, coords.x, coords.y, coords.z, GetEntityHeading(GetPlayerPed(-1)), true, false)
-        SetPedIntoVehicle(ped, veh, -1)
-    end
 
-    return ped
+        -- Put PED into vehicle
+        SetPedIntoVehicle(ped, veh, -1)
+        return ped
+
+    else
+        if sidewalkCoords and sidewalkCoords.x and sidewalkCoords.y and sidewalkCoords.z then
+            ped = CreatePed(4, modelHash, sidewalkCoords.x, sidewalkCoords.y, sidewalkCoords.z, 0.0, true, false)
+        else
+            print('Error: Invalid sidewalkCoords coordinates')
+        end
+
+        -- Modify attributes of the PED
+        SetEntityHealth(ped, 200) -- Set the health (default is 100)
+        SetPedAccuracy(ped, bountyData.accuracyModifier)
+        SetPedAlertness(ped, bountyData.alertnessModifier)
+
+        -- Give the PED a primary weapon
+        GiveWeaponToPed(ped, GetHashKey(bountyData.primaryWeapon), 999, false, true)
+
+        return ped
+
+    end
 end
 
 -- Main thread checking if player is in a bounty area
