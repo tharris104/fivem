@@ -108,6 +108,7 @@ function initMenu(menu)
         end
     end
 end
+initMenu(mainMenu)
 -- menu parameters
 _menuPool:RefreshIndex()
 _menuPool:MouseControlsEnabled (false)
@@ -119,7 +120,7 @@ RegisterNetEvent("createBountyBlip")
 AddEventHandler("createBountyBlip", function(selectedBounty)
     local playerName = GetPlayerName(PlayerId())
     print(playerName .. ' accepted bounty hunter job!')
-    local targetPed = CreateRandomPed(selectedBounty.weapon)
+    local targetPed = CreateBountyPed(selectedBounty)
     local blip = AddBlipForEntity(targetPed)
     SetBlipSprite(blip, 84) -- Red blip
     SetBlipDisplay(blip, 2)
@@ -173,7 +174,7 @@ function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
 end
 
 -- Function to create a random PED within a specified distance from the player
-function CreateRandomPed(bountyData, minDistance, maxDistance)
+function CreateBountyPed(bountyData, minDistance, maxDistance)
     local modelHash = bountyData.model
     local vehichle_modelHash = bountyData.vehicle_model
     local playerCoords = GetEntityCoords(PlayerPedId())
