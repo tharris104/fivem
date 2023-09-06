@@ -47,13 +47,14 @@ function IsPlayerInPedFOV(ped, player)
         local pedHeading = GetEntityHeading(ped)
 
         local direction = playerCoords - pedCoords
-        local angle = math.atan2(direction.y, direction.x) * (180 / math.pi)
-        angle = angle - pedHeading
+        local angle = math.atan2(direction.y, direction.x) - pedHeading
 
-        if angle > -90 and angle < 90 then
-                return true -- Player is in the field of view
+        if angle > -math.pi / 2 and angle < math.pi / 2 then
+                print("Debug - Player is in the field of view")
+                return true
         else
-                return false -- Player is outside the field of view
+                print("Debug - Player is outside the field of view")
+                return false
         end
 end
 
@@ -473,7 +474,7 @@ Citizen.CreateThread(function()
                                                 -- cop sees you driving a known wanted vehicle (evaded successfully)
                                                 elseif IsVehicleWanted(playerveh) then
                                                         ShowNotification("~r~Police~s~ witnessed you driving a known wanted vehicle!")
-                                                        print(playerName .. "Police witnessed you driving a wanted vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
+                                                        print("Police witnessed " .. playerName .. " driving a known wanted vehicle! cop (" .. ent .. ") dist (" .. dist .. ")")
                                                         local policeBlip = AddBlipForEntity(ent)
                                                         SetBlipSprite(policeBlip, 8)
                                                         SetBlipColour(policeBlip, 1)
