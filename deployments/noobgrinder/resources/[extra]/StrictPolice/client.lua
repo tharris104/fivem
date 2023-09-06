@@ -54,9 +54,6 @@ function IsPlayerInPedFOV(ped, player)
         local dotProduct = DotProduct3D(pedForwardVector, directionToPlayer)
 
         if dotProduct > 0.5 then  -- Adjust this threshold as needed for your game
-                if debug_enabled then
-                        print("IsPlayerInPedFOV() - Player is in Police PED's FOV (" .. ped .. ")")
-                end
                 local policeBlip = AddBlipForEntity(ped)
                 SetBlipSprite(policeBlip, 8)
                 SetBlipColour(policeBlip, 1)
@@ -440,7 +437,10 @@ Citizen.CreateThread(function()
 
                 -- dont bother checking if no police PED can see player
                 if not ent == -1 and not dist == -1 then
-                        -- traffic violations (is player in vehicle)
+                        if debug_enabled then
+                                print('Police ped (' .. ent ..') distance (' .. dist ..')')
+                        end
+                        -- traffic violations (is the player in a vehicle)
                         if IsPedInAnyVehicle(PlayerPedId(), false) then
 
                                 local playerveh = GetVehiclePedIsUsing(playerPed)
