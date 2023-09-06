@@ -85,26 +85,24 @@ function GetClosestPolicePed(coords)
         coords = coords or GetEntityCoords(playerPed)
 
         for _, entity in pairs(GetGamePool("CPed")) do
-                print('found ' .. entity)
                 local policePed
-                local pedType = GetPedType(policePed)
-                if pedType == 6 or pedType == 27 or pedType == 5 then
-                        print('yo its the po-po')
-                end
                 if IsPedInAnyVehicle(entity, true) then
                         policePed = GetPedInVehicleSeat(entity, -1)
                 else
                         policePed = entity
                 end
-
-                if DoesEntityExist(policePed) and IsPedAPed(policePed) then
+                if DoesEntityExist(policePed) then
+                        local entityPedType = GetPedType(policePed)
                         local isDead = IsEntityDead(policePed)
                         local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                         local distance = #(coords - GetEntityCoords(policePed))
+                        print('entityPedType: ' .. entityPedType)
 
-                        if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
-                                closestPed = policePed
-                                closestDist = distance
+                        if entityPedType == 6 or entityPedType == 27 or entityPedType == 5 then
+                                if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
+                                        closestPed = policePed
+                                        closestDist = distance
+                                end
                         end
                 end
         end
@@ -114,6 +112,7 @@ function GetClosestPolicePed(coords)
         end
         return closestPed, closestDist
 end
+
 
 -- Function for returning the closest amount of peds
 function GetClosestPolicePeds(coords)
