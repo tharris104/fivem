@@ -50,10 +50,9 @@ function IsPlayerInPedFOV(ped, player)
         local angle = math.atan2(direction.y, direction.x) - pedHeading
 
         if angle > -math.pi / 2 and angle < math.pi / 2 then
-                print("IsPlayerInPedFOV() - Player is in PED's FOV (" .. ped .. ")")
+                print("IsPlayerInPedFOV() - Player is in Police PED's FOV (" .. ped .. ")")
                 return true
         else
-                print("IsPlayerInPedFOV() - Player is outside the FOV (" .. ped .. ")")
                 return false
         end
 end
@@ -98,7 +97,6 @@ function GetClosestPolicePed(coords)
                         local distance = #(coords - GetEntityCoords(policePed))
 
                         if entityPedType == 6 or entityPedType == 27 then
-                                print('GetClosestPolicePed() - entityPedType: ' .. entityPedType)
                                 if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
                                         closestPed = policePed
                                         closestDist = distance
