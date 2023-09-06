@@ -98,7 +98,9 @@ function GetClosestPolicePed(coords)
                         local entityPedType = GetPedType(policePed)
                         local distance = #(coords - GetEntityCoords(policePed))
 
+
                         if entityPedType == 6 or entityPedType == 27 then
+                                print('GetClosestPolicePed() - entityPedType: ' .. entityPedType)
                                 local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                                 local isDead = IsEntityDead(policePed)
                                 if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
@@ -107,10 +109,6 @@ function GetClosestPolicePed(coords)
                                 end
                         end
                 end
-        end
-        if debug_enabled then
-                print('GetClosestPolicePed() - closestPed: ' .. closestPed)
-                print('GetClosestPolicePed() - closestDist: ' .. closestDist)
         end
         return closestPed, closestDist
 end
