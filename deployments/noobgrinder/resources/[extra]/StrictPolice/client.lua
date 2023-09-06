@@ -24,7 +24,7 @@ local angleThreshold = 90.0
 local StopPoliceSpeaking = true -- todo: doesnt really work as expected..
 
 -- Maximum distance police PEDs can see player in their line of sight
-local MaxLosDist = 25 -- default 25
+local MaxLosDist = 10 -- default ??
 
 -- Switch used for modifying wanted level changes
 local PlayerWantedCheck = false
@@ -96,6 +96,11 @@ function GetClosestPolicePed(coords)
                                 local isDead = IsEntityDead(policePed)
                                 local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                                 local distance = #(coords - GetEntityCoords(policePed))
+                                if debug_enabled then
+                                        print('GetClosestPolicePed() - police ped: ' .. policePed)
+                                        print('GetClosestPolicePed() - police ped in FOV: ' .. isPlayerInFOV)
+                                        print('GetClosestPolicePed() - police ped distance from player: ' .. distance)
+                                end
                                 if not isDead and isPlayerInFOV then
                                         if closestDist == -1 or distance < closestDist then
                                                 closestPed = policePed
@@ -432,6 +437,8 @@ Citizen.CreateThread(function()
                         if dist < MaxLosDist then
                                 -- if player is not already wanted
                                 if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
+                                        print('dist: ' .. dist)
+                                        print('maxLosDist: ' .. MaxLosDist)
                                         if vehicleClass == 16 then
                                                 -- vehicle is a plane, do nothing
                                         else
