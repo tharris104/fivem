@@ -54,10 +54,6 @@ function IsPlayerInPedFOV(ped, player)
         local dotProduct = DotProduct3D(pedForwardVector, directionToPlayer)
 
         if dotProduct > 0.5 then  -- Adjust this threshold as needed for your game
-                local policeBlip = AddBlipForEntity(ped)
-                SetBlipSprite(policeBlip, 8)
-                SetBlipColour(policeBlip, 1)
-                SetBlipAsShortRange(policeBlip, true)
                 return true
         else
                 -- The player is not in the FOV
@@ -109,6 +105,10 @@ function GetClosestPolicePed(coords)
                                 if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
                                         closestPed = policePed
                                         closestDist = distance
+                                        local policeBlip = AddBlipForEntity(policePed)
+                                        SetBlipSprite(policeBlip, 8)
+                                        SetBlipColour(policeBlip, 1)
+                                        SetBlipAsShortRange(policeBlip, true)
                                 end
                         end
                 end
@@ -172,20 +172,16 @@ function GetClosestPolicePeds(coords)
         return closestPolicePeds
 end
 
--- Thread to check player movement
-Citizen.CreateThread(function()
-        while true do
-                CheckPlayerStopped()
-                Citizen.Wait(1000) -- every 1 second
-        end
-end)
-
 -- Modify police behavior based on players wanted level
 Citizen.CreateThread(function()
         wanted_notified = false
         while true do
 
                 Citizen.Wait(1000) -- every 1 second
+
+                -- todo: improve this method...
+                CheckPlayerStopped()
+
                 local policePed = -1
                 local playerCoords = GetEntityCoords(PlayerPedId())
                 local closestPolicePeds = GetClosestPolicePeds(playerCoords)
