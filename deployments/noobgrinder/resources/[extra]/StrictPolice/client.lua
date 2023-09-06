@@ -81,35 +81,35 @@ end
 -- Function for returning the closest police ped
 function GetClosestPolicePed(coords)
         local playerPed = PlayerPedId()
-        local closestPed, closestDist, policePed = -1, -1, -1
+        local closestPed, closestDist = nil, -1
         coords = coords or GetEntityCoords(playerPed)
 
-        for _, entity in pairs(GetGamePool("CPed")) do
-                if IsEntityAPed(entity) and GetPedType(entity) == 7 then -- Ped is a cop
-                        if IsPedInAnyVehicle(entity, true) then
-                                policePed = GetPedInVehicleSeat(entity, -1)
-                        else
-                                policePed = entity
-                        end
+        for _, ped in ipairs(GetAllPeds()) do
+                if not IsEntityDead(ped) and IsPedAPlayer(ped) == false then
+                        local pedType = GetPedType(ped)
 
-                        if DoesEntityExist(policePed) then
-                                local isDead = IsEntityDead(policePed)
-                                local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
-                                local distance = #(coords - GetEntityCoords(policePed))
+                        -- Check if the ped is a police ped (you can customize this check based on your game's criteria)
+                        if pedType == 6 or pedType == 27 or pedType == 5 then
+                                local isPlayerInFOV = IsPlayerInPedFOV(ped, playerPed)
+                                local distance = #(coords - GetEntityCoords(ped))
+
                                 if debug_enabled then
-                                        print('GetClosestPolicePed() - police ped: ' .. policePed)
+                                        print('GetClosestPolicePed() - police ped: ' .. ped)
                                         print('GetClosestPolicePed() - police ped in FOV: ' .. isPlayerInFOV)
                                         print('GetClosestPolicePed() - police ped distance from player: ' .. distance)
                                 end
-                                if not isDead and isPlayerInFOV then
-                                        if closestDist == -1 or distance < closestDist then
-                                                closestPed = policePed
-                                                closestDist = distance
-                                        end
+
+                                if isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
+                                        closestPed = ped
+                                        closestDist = distance
                                 end
                         end
-
                 end
+        end
+
+        if debug_enabled then
+                print('GetClosestPolicePed() - closestPed: ' .. closestPed)
+                print('GetClosestPolicePed() - closestDist: ' .. closestDist)
         end
 
         return closestPed, closestDist
