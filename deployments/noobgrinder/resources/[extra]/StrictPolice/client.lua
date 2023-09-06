@@ -1,6 +1,3 @@
--- Crime types reference
--- https://docs.fivem.net/natives/?_0xE9B09589827545E7
-
 -- debug mode (write info to console)
 local debug_enabled = true
 
@@ -24,7 +21,7 @@ local angleThreshold = 90.0
 local StopPoliceSpeaking = true -- todo: doesnt really work as expected..
 
 -- Maximum distance police PEDs can see player in their line of sight
-local MaxLosDist = 10 -- default ??
+local MaxLosDist = 20 -- default 20
 
 -- Switch used for modifying wanted level changes
 local PlayerWantedCheck = false
@@ -32,6 +29,11 @@ local PlayerWantedCheck = false
 -- Variables used for police pursuit
 local policePeds = {} -- Store the police peds you want to control
 local isPlayerStopped = false -- When chasing, always check if player is stopped
+
+-- Helper function to calculate dot product of two vectors
+function DotProduct3D(a, b)
+        return a.x * b.x + a.y * b.y + a.z * b.z
+end
 
 -- Function for displaying notifications to player
 function ShowNotification(text)
@@ -44,19 +46,24 @@ end
 function IsPlayerInPedFOV(ped, player)
         local pedCoords = GetEntityCoords(ped, false)
         local playerCoords = GetEntityCoords(player, false)
-        local pedHeading = GetEntityHeading(ped)
+        local pedForwardVector = GetEntityForwardVector(ped)
 
-        local direction = playerCoords - pedCoords
-        local angle = math.atan2(direction.y, direction.x) - pedHeading
+        local directionToPlayer = playerCoords - pedCoords
+        directionToPlayer = directionToPlayer / #(directionToPlayer)  -- Normalize the vector
 
-        if angle > -math.pi / 2 and angle < math.pi / 2 then
-                print("IsPlayerInPedFOV() - Player is in Police PED's FOV (" .. ped .. ")")
+        local dotProduct = DotProduct3D(pedForwardVector, directionToPlayer)
+
+        if dotProduct > 0.5 then  -- Adjust this threshold as needed for your game
+                if debug_enabled then
+                        print("IsPlayerInPedFOV() - Player is in Police PED's FOV (" .. ped .. ")")
+                end
                 local policeBlip = AddBlipForEntity(ped)
                 SetBlipSprite(policeBlip, 8)
                 SetBlipColour(policeBlip, 1)
                 SetBlipAsShortRange(policeBlip, true)
                 return true
         else
+                -- The player is not in the FOV
                 return false
         end
 end
@@ -100,7 +107,6 @@ function GetClosestPolicePed(coords)
 
 
                         if entityPedType == 6 or entityPedType == 27 then
-                                print('GetClosestPolicePed() - entityPedType: ' .. entityPedType)
                                 local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                                 local isDead = IsEntityDead(policePed)
                                 if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
@@ -108,6 +114,12 @@ function GetClosestPolicePed(coords)
                                         closestDist = distance
                                 end
                         end
+                end
+        end
+        if debug_enabled then
+                if not closestPed == -1 or not closestDist == 1 then
+                        print('GetClosestPolicePed() - closestPed: ' .. closestPed)
+                        print('GetClosestPolicePed() - closestDist: ' .. closestDist)
                 end
         end
         return closestPed, closestDist
@@ -414,6 +426,7 @@ Citizen.CreateThread(function()
 end)
 
 -- Get the closest police within line of sight and reports crimes on player
+-- Crime types reference: https://docs.fivem.net/natives/?_0xE9B09589827545E7
 Citizen.CreateThread(function()
         while true do
                 Wait(1000) -- every 1 second
