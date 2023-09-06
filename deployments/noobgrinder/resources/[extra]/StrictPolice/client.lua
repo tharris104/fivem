@@ -442,6 +442,7 @@ Citizen.CreateThread(function()
                                         if not IsPlayerWantedLevelGreater(PlayerId(), 0) then
                                                 print('dist: ' .. dist)
                                                 print('maxLosDist: ' .. MaxLosDist)
+                                                local wheelieState = GetVehicleWheelieState(playerveh)
                                                 if vehicleClass == 16 then
                                                         -- vehicle is a plane, do nothing
                                                 else
@@ -455,7 +456,7 @@ Citizen.CreateThread(function()
                                                                 SetBlipAsShortRange(policeBlip, true)
                                                                 ReportCrime(PlayerId(), 4, GetWantedLevelThreshold(1)) -- 4: Speeding vehicle (a "5-10")
                                                                 -- cop sees you doing a wheelie
-                                                        elseif GetVehicleWheelieState(playerveh) == 129 then
+                                                        elseif wheelieState == 129 or wheelieState == 65 then
                                                                 ShowNotification("~r~Police~s~ witnessed you doing a wheelie!")
                                                                 print(playerName .. "Police witnessed you doing a wheelie! cop (" .. ent .. ") dist (" .. dist .. ")")
                                                                 local policeBlip = AddBlipForEntity(ent)
