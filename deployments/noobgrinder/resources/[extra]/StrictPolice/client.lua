@@ -51,6 +51,10 @@ function IsPlayerInPedFOV(ped, player)
 
         if angle > -math.pi / 2 and angle < math.pi / 2 then
                 print("IsPlayerInPedFOV() - Player is in Police PED's FOV (" .. ped .. ")")
+                local policeBlip = AddBlipForEntity(ped)
+                SetBlipSprite(policeBlip, 8)
+                SetBlipColour(policeBlip, 1)
+                SetBlipAsShortRange(policeBlip, true)
                 return true
         else
                 return false
@@ -92,11 +96,11 @@ function GetClosestPolicePed(coords)
                 end
                 if DoesEntityExist(policePed) then
                         local entityPedType = GetPedType(policePed)
-                        local isDead = IsEntityDead(policePed)
-                        local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
                         local distance = #(coords - GetEntityCoords(policePed))
 
                         if entityPedType == 6 or entityPedType == 27 then
+                                local isPlayerInFOV = IsPlayerInPedFOV(policePed, playerPed)
+                                local isDead = IsEntityDead(policePed)
                                 if not isDead and isPlayerInFOV and (closestDist == -1 or distance < closestDist) then
                                         closestPed = policePed
                                         closestDist = distance
