@@ -1,10 +1,12 @@
 -- Global configurations
 local config = {
-    pedBountySpawnMinDistance = 500.0, -- spawn bount minimum of 500 meters away
+    pedBountySpawnMinDistance = 500.0,  -- spawn bount minimum of 500 meters away
     pedBountySpawnMaxDistance = 1500.0, -- spawn bount maximum of 1500 meters away
-    openBountyMenuKey = 29, -- default key bind (B), only works inside the marker
-    markerDisplayDistance = 12.0, -- distance in which to draw markers
-    pedDrivingStyle = 786603, -- https://vespura.com/fivem/drivingstyle/
+    openBountyMenuKey         = 29,     -- default key bind (B), only works inside the marker
+    markerDisplayDistance     = 12.0,   -- distance in which to draw markers
+    pedDrivingStyle           = 786603, -- https://vespura.com/fivem/drivingstyle/
+    sidewalkCoordsAttempts    = 15,     -- number of attempts to locate suitable coords
+    numberSectors             = 8,      -- number of sectors to use when generating random coords
 }
 
 -- Define where bounty jobs can be accepted (coordinates)
@@ -147,8 +149,6 @@ end)
 -- Event handler to remove the bounty PED and blip when the player dies
 RegisterNetEvent("playerDied")
 AddEventHandler("playerDied", function()
-    local playerName = GetPlayerName(PlayerId())
-    print(playerName .. ' failed to collect the bounty')
     if DoesEntityExist(globalTargetPed) then
         DeleteEntity(globalTargetPed)
     end
@@ -231,19 +231,21 @@ end
 
 function GiveRewardToPlayer(amount)
     local playerPed = PlayerId()
-    local currentMoney = GetPlayerMoney(playerPed)
-    SetPlayerMoney(playerPed, currentMoney + amount, false)
+    local currentMoney = GetPedMoney(playerPed)
+    SetPedMoney(playerPed, currentMoney + amount, false)
     ShowNotification("~s~You earned $" .. amount)
 end
 
 -- Function to generate random spawn coordinates within the specified distance range
 function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
     local attempts = 0
-    local maxAttempts = 10 -- Maximum number of attempts to find a valid spawn point
+    local maxAttempts = config.sidewalkCoordsAttempts -- Maximum number of attempts to find a valid spawn point
 
-    while attempts < maxAttempts do
+    while attempts <= maxAttempts do
         print('Attempt (' .. attempts .. '/' .. maxAttempts .. ') to generate a random coords on solid ground')
-        local angle = math.rad(math.random(0, 360)) -- Random angle in radians
+        -- Choose a random sector
+        local sector = math.random(1, config.numberSectors)
+        local angle = math.rad((360 / config.numberSectors) * (sector - 1)) -- Random angle within the selected sector
         local distance = math.random(minDistance, maxDistance) -- Random distance within the specified range
 
         local spawnCoords = {
@@ -254,20 +256,18 @@ function GetRandomSpawnCoords(playerCoords, minDistance, maxDistance)
 
         -- Check if the spawnCoords are on solid ground
         local _, groundZ = GetGroundZFor_3dCoord(spawnCoords.x, spawnCoords.y, spawnCoords.z + 1.0, false)
-        local validSpawn = false
 
         if groundZ ~= 0 and (spawnCoords.z - groundZ) < 2.0 then
-            validSpawn = true
-        end
-
-        if validSpawn then
             print('Updated random coords')
             return spawnCoords -- Return valid spawn coordinates
+        elseif attempts == maxAttempts then
+            return spawnCoords
         end
 
         attempts = attempts + 1
     end
 
+    -- fallback to players location when random coords cannot be generated
     return playerCoords
 end
 
