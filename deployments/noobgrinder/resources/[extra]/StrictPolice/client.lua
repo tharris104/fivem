@@ -426,7 +426,7 @@ Citizen.CreateThread(function()
                 local ent, dist = GetClosestPolicePed()
 
                 -- dont bother checking if no police PED can see player
-                if ent == -1 or dist == -1 then
+                if not ent == -1 and not dist == -1 then
                         -- traffic violations (is player in vehicle)
                         if IsPedInAnyVehicle(PlayerPedId(), false) then
 
